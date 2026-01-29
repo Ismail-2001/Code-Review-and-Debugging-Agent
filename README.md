@@ -124,4 +124,4 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 ---
 
-**Developed by Ismail — Advanced Agentic Coding Initiative**
+**Developed by Ismail, Advanced Agentic Coding Initiative**
