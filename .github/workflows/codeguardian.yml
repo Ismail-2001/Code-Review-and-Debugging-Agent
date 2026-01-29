@@ -1,0 +1,46 @@
+name: 🤖 CodeGuardian Analysis
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+  push:
+    branches: [ main ]
+
+jobs:
+  review:
+    name: Advanced Agentic Review
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Run CodeGuardian
+        env:
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python src/main.py review . \
+            --scope diff \
+            --severity medium \
+            --format all \
+            --output ./reports
+
+      - name: Upload Review Reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: codeguardian-reports
+          path: ./reports/
+          retention-days: 7
