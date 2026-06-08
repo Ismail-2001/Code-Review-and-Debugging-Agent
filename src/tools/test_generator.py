@@ -3,7 +3,6 @@ Synthetic Test Generation tool for adversarial testing.
 """
 
 from langchain_core.tools import tool
-from typing import List, Dict
 
 @tool
 def generate_synthetic_tests(file_path: str, logic_description: str) -> str:

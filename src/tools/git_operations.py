@@ -4,7 +4,7 @@ Git operation tools for repository analysis.
 
 from langchain_core.tools import tool
 from git import Repo, GitCommandError
-from typing import List, Dict, Optional
+from typing import List, Dict
 import os
 import shutil
 
@@ -95,7 +95,7 @@ def get_changed_files(repo_path: str, commit_range: str = "HEAD~10..HEAD") -> Li
         changed_files = diff.split('\n') if diff else []
         
         return [f for f in changed_files if f]
-    except GitCommandError as e:
+    except GitCommandError:
         return []
 
 

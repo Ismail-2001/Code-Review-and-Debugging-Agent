@@ -3,17 +3,13 @@
 from __future__ import annotations
 
 import json
-import os
 import subprocess
 
-from langchain_core.prompts import ChatPromptTemplate
 
 from src.agents.base import AnalysisAgent
 from src.agents.state import CodeReviewState, Finding
 from src.prompts.static_analysis import STATIC_ANALYSIS_SYSTEM_PROMPT, FILE_CONTEXT_TEMPLATE
-from src.di.container import AppContext
 
-import uuid
 
 
 class StaticAnalysisAgent(AnalysisAgent):

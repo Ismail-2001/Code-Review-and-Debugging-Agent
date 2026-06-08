@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 from langgraph.graph import StateGraph, END
-from langgraph.checkpoint.memory import MemorySaver
 
 from src.agents.state import CodeReviewState
-from src.di.container import AppContext
+from src.di.container import AppContext, create_app_context
 
 
 def build_code_review_graph(ctx: AppContext) -> StateGraph:

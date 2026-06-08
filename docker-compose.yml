@@ -61,7 +61,7 @@ services:
   # ============================================================
   worker:
     build: .
-    command: celery -A src.queue.tasks worker --concurrency=4 --loglevel=info --queues=codeguardian
+    command: celery -A src.work_queue.tasks worker --concurrency=4 --loglevel=info --queues=codeguardian
     env_file: .env
     environment:
       - REDIS_URL=redis://redis:6379/0

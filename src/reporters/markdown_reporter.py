@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import datetime
-from typing import Any
 
 
 SEVERITY_ICONS = {
@@ -84,8 +83,8 @@ class MarkdownReporter:
 
                 lines.append(f"### {icon} {i}. {title}")
                 lines.append("")
-                lines.append(f"| Field | Value |")
-                lines.append(f"|-------|-------|")
+                lines.append("| Field | Value |")
+                lines.append("|-------|-------|")
                 lines.append(f"| **Severity** | `{severity.upper()}` |")
                 lines.append(f"| **File** | `{file}` |")
                 lines.append(f"| **Line** | `{line}` |")
@@ -94,7 +93,7 @@ class MarkdownReporter:
                 if cvss:
                     lines.append(f"| **CVSS** | {cvss} |")
                 if f.get("auto_fixable"):
-                    lines.append(f"| **Auto-Fix** | ✅ Available |")
+                    lines.append("| **Auto-Fix** | ✅ Available |")
                 lines.append("")
 
                 lines.append(f"**Description**: {desc}")

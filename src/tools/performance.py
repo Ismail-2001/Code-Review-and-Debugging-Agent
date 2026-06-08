@@ -3,7 +3,7 @@ Performance analysis tools for bottleneck detection.
 """
 
 from langchain_core.tools import tool
-from typing import List, Dict, Optional
+from typing import List, Dict
 
 @tool
 def profile_performance(file_path: str) -> Dict:

@@ -8,7 +8,6 @@ import uuid
 
 from src.agents.base import AnalysisAgent
 from src.agents.state import CodeReviewState, Finding
-from src.di.container import AppContext
 
 
 class TestingAgent(AnalysisAgent):

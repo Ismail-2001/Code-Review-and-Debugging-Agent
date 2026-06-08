@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Any
 
 from src.agents.state import CodeReviewState, Finding, sort_by_severity
 from src.scoring.quality_score import calculate_quality_score, categorize_findings

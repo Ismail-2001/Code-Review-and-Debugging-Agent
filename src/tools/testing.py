@@ -3,8 +3,7 @@ Testing tools for test execution and coverage analysis.
 """
 
 from langchain_core.tools import tool
-from typing import List, Dict, Optional
-import subprocess
+from typing import Dict
 
 @tool
 def run_unit_tests(test_path: str) -> Dict:

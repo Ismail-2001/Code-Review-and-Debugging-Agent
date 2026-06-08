@@ -2,7 +2,7 @@
 RAG Engine for policy-based code review.
 """
 
-from typing import List, Dict, Any
+from typing import List, Dict
 import os
 
 class RAGEngine:

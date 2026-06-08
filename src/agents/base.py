@@ -7,10 +7,9 @@ import uuid
 from abc import ABC, abstractmethod
 from typing import Any
 
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.messages import SystemMessage, HumanMessage
+from langchain_core.prompts.chat import ChatPromptTemplate
 from langchain_core.language_models import BaseChatModel
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from src.di.container import AppContext, CacheClient, MetricsClient
 from src.agents.state import CodeReviewState, Finding
@@ -146,6 +145,6 @@ class AnalysisAgent(ABC):
 
             return findings
 
-        except Exception as e:
+        except Exception:
             self.metrics.increment(f"agent.{self.category()}.llm_error")
             return []

@@ -105,7 +105,7 @@ def create_app_context(config_path: str | None = None) -> AppContext:
     # Only create LLM if dependencies are available
     try:
         llm = _create_llm(config)
-    except ImportError:
+    except (ImportError, Exception):
         pass
 
     try:

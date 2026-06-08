@@ -9,7 +9,6 @@ import uuid
 from src.agents.base import AnalysisAgent
 from src.agents.state import CodeReviewState, Finding
 from src.prompts.performance import PERFORMANCE_SYSTEM_PROMPT
-from src.di.container import AppContext
 
 
 PERFORMANCE_TEMPLATE = """File: {file_path}

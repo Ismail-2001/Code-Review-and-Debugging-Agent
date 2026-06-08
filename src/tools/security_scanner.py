@@ -3,9 +3,7 @@ Security scanner tools for vulnerability detection.
 """
 
 from langchain_core.tools import tool
-from typing import List, Dict, Optional
-import subprocess
-import json
+from typing import List, Dict
 
 @tool
 def scan_security_vulnerabilities(file_path: str) -> List[Dict]:

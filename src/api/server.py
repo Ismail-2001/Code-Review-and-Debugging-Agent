@@ -7,12 +7,12 @@ import asyncio
 from datetime import datetime
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks, Query, Header, WebSocket
+from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks, Query, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field
 
-from src.di.container import create_app_context, AppContext
+from src.di.container import create_app_context
 from src.agents.graph import build_code_review_graph
 from src.agents.state import CodeReviewState
 
@@ -214,8 +214,6 @@ async def _run_review_task(review_id: str, req: ReviewRequest):
             "skip_categories": [],
         }
 
-        import time
-        import json
 
         config = {"configurable": {"thread_id": review_id}}
         final_state = initial_state.copy()
@@ -237,7 +235,6 @@ async def _run_review_task(review_id: str, req: ReviewRequest):
                 "low": sum(1 for f in findings if f.get("severity") == "low"),
             },
             "findings": findings[:100],
-            "quality_score": final_state.get("quality_score"),
         })
 
     except Exception as e:

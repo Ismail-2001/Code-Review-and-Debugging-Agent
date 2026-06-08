@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import os
 import uuid
-from pathlib import Path
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from src.agents.base import AnalysisAgent
 from src.agents.state import CodeReviewState, Finding
@@ -164,7 +163,7 @@ class PolicyVerificationAgent(AnalysisAgent):
         return "policy_verification"
 
     async def analyze(self, state: CodeReviewState) -> CodeReviewState:
-        from langchain_core.prompts import ChatPromptTemplate
+        from langchain_core.prompts.chat import ChatPromptTemplate
 
         files = state.get("target_files", [])
         findings: list[Finding] = []

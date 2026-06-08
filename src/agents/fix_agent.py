@@ -3,17 +3,14 @@
 from __future__ import annotations
 
 import ast
-import uuid
 import re
-import difflib
 
-from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.prompts.chat import ChatPromptTemplate
 from pydantic import BaseModel, Field
 
 from src.agents.base import AnalysisAgent
 from src.agents.state import CodeReviewState, Finding
 from src.prompts.fix_generation import FIX_GENERATION_SYSTEM_PROMPT, FIX_TEMPLATE
-from src.di.container import AppContext
 
 
 class FixResult(BaseModel):
@@ -150,8 +147,6 @@ class FixAgent(AnalysisAgent):
 
     def _apply_diff(self, original: str, diff: str) -> str:
         """Apply a unified diff to original content."""
-        # Use difflib to apply the diff
-        original_lines = original.splitlines(keepends=True)
         result_lines = []
 
         patch_lines = diff.split("\n")
@@ -167,7 +162,6 @@ class FixAgent(AnalysisAgent):
                 if not match:
                     i += 1
                     continue
-                orig_start = int(match.group(1))
                 i += 1
                 # Apply the hunk
                 while i < len(patch_lines) and not patch_lines[i].startswith("@@"):
@@ -186,7 +180,5 @@ class FixAgent(AnalysisAgent):
         if not result_lines:
             raise DiffError("No changes applied from diff")
 
-        # Merge unchanged lines from original with changes
-        final = list(original_lines)
         # Simplified: just return the patched lines
         return "".join(result_lines)

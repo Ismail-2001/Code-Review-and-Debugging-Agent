@@ -14,6 +14,9 @@ from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 
+
+
+
 # Ensure src is on path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -25,8 +28,24 @@ from src.utils.logger import setup_logger
 
 load_dotenv()
 
-console = Console()
+console = Console(emoji=False)
 logger = setup_logger("codeguardian")
+
+def safe_print(msg: str = "", style: str = ""):
+    """Print safely on Windows legacy terminals."""
+    try:
+        if style:
+            console.print(msg, style=style)
+        else:
+            console.print(msg)
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        # Strip rich markup and print plain text
+        import re
+        plain = re.sub(r'\[/?\w+(?: \w+=[^\]]+)*\]', '', msg)
+        try:
+            print(plain)
+        except (UnicodeEncodeError, UnicodeDecodeError):
+            print(plain.encode('ascii', errors='replace').decode())
 
 
 @click.group()
@@ -62,8 +81,8 @@ def review(
     config_path: str | None,
 ):
     """Run a complete code review on a repository."""
-    console.print(f"[bold cyan]CodeGuardian[/bold cyan] Review: [white]{repository_url}[/white]")
-    console.print("")
+    safe_print(f"[bold cyan]CodeGuardian[/bold cyan] Review: [white]{repository_url}[/white]")
+    safe_print("")
 
     target_files = files.split(",") if files else None
     config = load_config(config_path)
@@ -126,12 +145,14 @@ async def _run_review(
 
     config = {"configurable": {"thread_id": f"review-{int(time.time())}"}}
 
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        console=console,
-    ) as progress:
-        task = progress.add_description("Initializing...", total=None)
+    try:
+        progress = Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        )
+        progress.__enter__()
+        task = progress.add_task("[cyan]Initializing...[/cyan]", total=None)
 
         try:
             final_state: CodeReviewState = initial_state.copy()
@@ -144,14 +165,21 @@ async def _run_review(
 
             progress.update(task, description="[green]Analysis Complete![/green]")
 
-            console.print("")
+            safe_print("")
             _display_summary(final_state)
             _save_reports(final_state, output_dir, output_format)
 
         except Exception as e:
             progress.update(task, description="[red]Analysis Failed[/red]")
-            console.print(f"\n[red]Error:[/red] {e}")
+            safe_print(f"\n[red]Error:[/red] {e}")
             logger.error("Review failed", exc_info=True)
+        finally:
+            try:
+                progress.__exit__(None, None, None)
+            except Exception:
+                pass
+    except Exception:
+        pass
 
 
 def _display_summary(state: CodeReviewState):
@@ -170,22 +198,18 @@ def _display_summary(state: CodeReviewState):
     table.add_column("Count")
 
     for sev, count in severity_counts.items():
-        style = {
-            "critical": "red bold",
-            "high": "orange1",
-            "medium": "yellow",
-            "low": "green",
-            "info": "blue",
-        }.get(sev, "")
-        icon = {"critical": "🔴", "high": "🟠", "medium": "🟡", "low": "🟢", "info": "ℹ️"}.get(sev, "")
-        table.add_row(f"{icon} {sev.capitalize()}", str(count))
+        table.add_row(f"{sev.capitalize()}", str(count))
 
-    console.print(table)
+    safe_print("")
+    try:
+        console.print(table)
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        pass  # skip rich table rendering on legacy terminals
 
     if findings:
-        console.print("\n[bold]Top Issues:[/bold]")
+        safe_print("\n[bold]Top Issues:[/bold]")
         for i, f in enumerate(findings[:5], 1):
-            console.print(
+            safe_print(
                 f"  {i}. [{f.get('severity', 'info').upper()}] "
                 f"{f.get('title', 'Untitled')} — "
                 f"[dim]{f.get('file', '?')}:{f.get('line', '?')}[/dim]"
@@ -200,22 +224,22 @@ def _save_reports(state: CodeReviewState, output_dir: str, output_format: str):
         path = os.path.join(output_dir, "codeguardian_report.md")
         with open(path, "w", encoding="utf-8") as f:
             f.write(state.get("markdown_report", "# No report generated"))
-        console.print(f"\n✅ Markdown report: [blue]{path}[/blue]")
+        safe_print(f"\n[green]OK[/green] Markdown report: [blue]{path}[/blue]")
 
     if output_format in ("json", "all"):
         path = os.path.join(output_dir, "codeguardian_report.json")
         with open(path, "w", encoding="utf-8") as f:
             json.dump(state.get("json_report", {}), f, indent=2, default=str)
-        console.print(f"✅ JSON report: [blue]{path}[/blue]")
+        safe_print(f"[green]OK[/green] JSON report: [blue]{path}[/blue]")
 
     # Generate GitHub Issues Summary
     if state.get("prioritized_issues"):
         path = os.path.join(output_dir, "github_issues.md")
         with open(path, "w", encoding="utf-8") as f:
             f.write(_github_issues_summary(state))
-        console.print(f"✅ GitHub Issues summary: [blue]{path}[/blue]")
+        safe_print(f"[green]OK[/green] GitHub Issues summary: [blue]{path}[/blue]")
 
-    console.print("\n[bold green]Review complete! 🎉[/bold green]")
+    safe_print("\n[bold green]Review complete![/bold green]")
 
 
 def _github_issues_summary(state: CodeReviewState) -> str:
@@ -237,9 +261,9 @@ def _github_issues_summary(state: CodeReviewState) -> str:
 @cli.command()
 def version():
     """Show version information."""
-    console.print("[bold]CodeGuardian v2.0.0[/bold]")
-    console.print("FAANG-grade cognitive code review agent")
-    console.print("Powered by LangGraph + LLMs")
+    safe_print("[bold]CodeGuardian v2.0.0[/bold]")
+    safe_print("FAANG-grade cognitive code review agent")
+    safe_print("Powered by LangGraph + LLMs")
 
 
 if __name__ == "__main__":

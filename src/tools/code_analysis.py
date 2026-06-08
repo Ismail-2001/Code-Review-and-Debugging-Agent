@@ -3,11 +3,10 @@ Code analysis tools for static analysis and linting.
 """
 
 from langchain_core.tools import tool
-from typing import List, Dict, Optional
+from typing import List, Dict
 import ast
 import subprocess
 import json
-from pathlib import Path
 
 
 @tool

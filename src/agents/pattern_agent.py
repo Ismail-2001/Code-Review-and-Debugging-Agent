@@ -3,11 +3,9 @@
 from __future__ import annotations
 
 import ast
-import os
 
 from src.agents.base import AnalysisAgent
 from src.agents.state import CodeReviewState, Finding
-from src.di.container import AppContext
 
 import uuid
 

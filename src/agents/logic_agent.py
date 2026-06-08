@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import ast
-import uuid
 
 from src.agents.base import AnalysisAgent
 from src.agents.state import CodeReviewState, Finding
@@ -11,7 +9,6 @@ from src.prompts.logic_verification import (
     LOGIC_VERIFICATION_SYSTEM_PROMPT,
     LOGIC_VERIFICATION_TEMPLATE,
 )
-from src.di.container import AppContext
 
 import ast as ast_module
 

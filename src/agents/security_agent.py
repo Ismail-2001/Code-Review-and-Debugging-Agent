@@ -10,7 +10,6 @@ import uuid
 from src.agents.base import AnalysisAgent
 from src.agents.state import CodeReviewState, Finding
 from src.prompts.security import SECURITY_SYSTEM_PROMPT
-from src.di.container import AppContext
 
 
 SECURITY_TEMPLATE = """File: {file_path}

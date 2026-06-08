@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 import math
-from typing import List
 
-from src.agents.state import Finding, SEVERITY_RANK
+from src.agents.state import Finding
 
 
 def calculate_quality_score(findings: list[Finding], total_files: int) -> float:
