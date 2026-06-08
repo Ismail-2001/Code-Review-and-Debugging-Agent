@@ -45,6 +45,8 @@ coverage.xml
 *.py,cover
 .hypothesis/
 .pytest_cache/
+.mypy_cache/
+__pycache__/
 
 # Translations
 *.mo
@@ -69,5 +71,6 @@ venv.bak/
 standards/
 reports/*.md
 reports/*.json
+reports/*/
 *.log
 .gemini/
