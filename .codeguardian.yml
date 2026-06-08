@@ -1,0 +1,96 @@
+# .codeguardian.yml - Enterprise Configuration
+
+# ---------------------------------------------------------
+# Analysis Pipeline Configuration
+# ---------------------------------------------------------
+enabled_checks:
+  - static_analysis
+  - pattern_analysis
+  - security_audit
+  - performance_analysis
+  - testing_assessment
+  - logic_verification
+
+# Minimum severity threshold for reporting [critical, high, medium, low, info]
+severity_threshold: medium
+
+# ---------------------------------------------------------
+# Scope & Filtering
+# ---------------------------------------------------------
+exclude_patterns:
+  - "**/node_modules/**"
+  - "**/vendor/**"
+  - "**/dist/**"
+  - "**/build/**"
+  - "**/*.test.js"
+  - "**/*.spec.py"
+  - "**/__pycache__/**"
+  - ".git/**"
+
+include_patterns:
+  - "src/**/*.py"
+  - "src/**/*.js"
+  - "tests/**/*.py"
+
+# ---------------------------------------------------------
+# Language Specifics
+# ---------------------------------------------------------
+languages:
+  python:
+    linters:
+      - pylint
+      - flake8
+    max_line_length: 100
+    complexity_threshold: 10
+    
+  javascript:
+    linters:
+      - eslint
+    framework: react
+
+# ---------------------------------------------------------
+# Security Policy
+# ---------------------------------------------------------
+security:
+  scan_dependencies: true
+  check_secrets: true
+  fail_on_critical: true
+  allowed_licenses:
+    - MIT
+    - Apache-2.0
+    - BSD-3-Clause
+
+# ---------------------------------------------------------
+# Performance Thresholds
+# ---------------------------------------------------------
+performance:
+  max_function_lines: 50
+  max_class_lines: 300
+  check_n_plus_one: true
+
+# ---------------------------------------------------------
+# Automation & Fixes (HITL)
+# ---------------------------------------------------------
+auto_fix:
+  enabled: true
+  safe_only: true
+  require_approval:
+    - security_fixes
+    - architectural_changes
+
+# ---------------------------------------------------------
+# Reporting & Integrations
+# ---------------------------------------------------------
+reporting:
+  formats:
+    - markdown
+    - json
+    - html
+  include_code_snippets: true
+  
+  github_integration:
+    enabled: true
+    create_issues: true
+    labels:
+      - code-review
+      - automated

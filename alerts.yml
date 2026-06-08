@@ -1,0 +1,49 @@
+# CodeGuardian Alerting Rules
+
+groups:
+  - name: codeguardian
+    rules:
+      - alert: HighFailureRate
+        expr: rate(codeguardian_errors_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High error rate in CodeGuardian"
+          description: "Error rate is {{ $value }} per second over 5 minutes"
+
+      - alert: LLMCostSpike
+        expr: rate(codeguardian_llm_cost_cents_total[1h]) > 1000
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "LLM cost spike detected"
+          description: "LLM cost is {{ $value }} cents/hour"
+
+      - alert: QueueBacklog
+        expr: celery_queue_depth > 50
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Review queue backlog"
+          description: "Queue depth is {{ $value }}"
+
+      - alert: CacheHitRateLow
+        expr: rate(codeguardian_cache_hits_total[30m]) / (rate(codeguardian_cache_hits_total[30m]) + rate(codeguardian_agent_duration_seconds_count[30m])) < 0.1
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Cache hit rate below 10%"
+          description: "Cache is not effectively reducing LLM calls"
+
+      - alert: NoReviewsRecently
+        expr: rate(codeguardian_review_duration_seconds_count[1h]) == 0
+        for: 6h
+        labels:
+          severity: info
+        annotations:
+          summary: "No reviews in 6 hours"
+          description: "System may be underutilized or broken"

@@ -1,0 +1,27 @@
+# Prometheus configuration for CodeGuardian monitoring
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+rule_files:
+  - "alerts.yml"
+
+scrape_configs:
+  - job_name: "codeguardian-api"
+    static_configs:
+      - targets: ["api:8000"]
+    metrics_path: "/v1/metrics"
+
+  - job_name: "celery"
+    static_configs:
+      - targets: ["flower:5555"]
+
+  - job_name: "postgres"
+    static_configs:
+      - targets: ["postgres:9187"]
