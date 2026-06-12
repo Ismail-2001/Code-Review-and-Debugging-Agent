@@ -38,6 +38,12 @@ class TestSecurityPrompt:
         assert "low" in SECURITY_SYSTEM_PROMPT
 
     def test_no_false_positive_guidance(self):
-        assert any(phrase in SECURITY_SYSTEM_PROMPT for phrase in [
-            "false positive", "unsure", "Do NOT report", "If you are not confident",
-        ])
+        assert any(
+            phrase in SECURITY_SYSTEM_PROMPT
+            for phrase in [
+                "false positive",
+                "unsure",
+                "Do NOT report",
+                "If you are not confident",
+            ]
+        )

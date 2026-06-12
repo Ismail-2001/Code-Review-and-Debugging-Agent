@@ -12,12 +12,12 @@ class SecretMasker(logging.Filter):
     """Filter to mask sensitive data in logs to prevent accidental exposure."""
 
     PATTERNS = [
-        (r'(sk-)[a-zA-Z0-9]{32,}', r'\1********'),
-        (r'(key=)[a-zA-Z0-9_-]{20,}', r'\1********'),
-        (r'(token=)[a-zA-Z0-9_-]{20,}', r'\1********'),
-        (r'(secret=)[a-zA-Z0-9_-]{20,}', r'\1********'),
-        (r'(password=)[^\s&]+', r'\1********'),
-        (r'(api_key=)[^\s&]+', r'\1********'),
+        (r"(sk-)[a-zA-Z0-9]{32,}", r"\1********"),
+        (r"(key=)[a-zA-Z0-9_-]{20,}", r"\1********"),
+        (r"(token=)[a-zA-Z0-9_-]{20,}", r"\1********"),
+        (r"(secret=)[a-zA-Z0-9_-]{20,}", r"\1********"),
+        (r"(password=)[^\s&]+", r"\1********"),
+        (r"(api_key=)[^\s&]+", r"\1********"),
         (r'["\']sk-[a-zA-Z0-9]{32,}["\']', '"sk-********"'),
     ]
 

@@ -1,10 +1,11 @@
 """Integration tests for graph execution — end-to-end pipeline verification."""
 
-import pytest
-from unittest.mock import patch, AsyncMock
+from unittest.mock import AsyncMock
 
-from src.di.container import create_app_context, MetricsClient, CacheClient
+import pytest
+
 from src.agents.graph import build_code_review_graph
+from src.di.container import CacheClient, MetricsClient, create_app_context
 
 
 @pytest.fixture
@@ -72,7 +73,7 @@ async def test_graph_completes_full_pipeline(mock_ctx, tmp_path):
 
     config = {"configurable": {"thread_id": "test-001"}}
 
-    async for event in graph.astream(initial_state, config):
+    async for _event in graph.astream(initial_state, config):
         pass  # Let it run to completion
 
     # Verify final state — the graph should complete
@@ -130,7 +131,7 @@ async def test_graph_handles_empty_file_list(mock_ctx):
     config = {"configurable": {"thread_id": "test-002"}}
 
     try:
-        async for event in graph.astream(initial_state, config):
+        async for _event in graph.astream(initial_state, config):
             pass
         assert True  # Should not crash
     except Exception as e:

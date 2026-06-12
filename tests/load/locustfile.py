@@ -1,6 +1,6 @@
 """Locust load test for CodeGuardian API."""
 
-from locust import HttpUser, task, between
+from locust import HttpUser, between, task
 
 
 class CodeGuardianUser(HttpUser):

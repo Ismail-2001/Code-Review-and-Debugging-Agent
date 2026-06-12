@@ -48,7 +48,7 @@ Description: {description}
 File: {file}
 Line: {line}
 
-Code context (lines {start_line}–{end_line}):
+Code context (lines {start_line}-{end_line}):
 ```python
 {context}
 ```

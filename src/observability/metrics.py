@@ -1,171 +1,102 @@
-"""Observability setup — Prometheus metrics, structured logging, tracing."""
+"""Prometheus metrics, structured logging, and performance tracking."""
 
 from __future__ import annotations
 
+import json
+import logging
 import time
-import os
 from contextlib import contextmanager
 
-try:
-    from prometheus_client import Counter, Histogram, Gauge, generate_latest, REGISTRY
-    PROMETHEUS_AVAILABLE = True
-except ImportError:
-    PROMETHEUS_AVAILABLE = False
-
-# ============================================================
-# Metrics Definitions
-# ============================================================
-
-if PROMETHEUS_AVAILABLE:
-    review_duration = Histogram(
-        "codeguardian_review_duration_seconds",
-        "Time to complete a review",
-        ["status"],
-        buckets=[10, 30, 60, 120, 300, 600, 1800],
-    )
-
-    findings_total = Counter(
-        "codeguardian_findings_total",
-        "Total findings by severity and category",
-        ["severity", "category"],
-    )
-
-    llm_tokens_total = Counter(
-        "codeguardian_llm_tokens_total",
-        "Total LLM tokens used",
-        ["model", "operation"],
-    )
-
-    llm_cost_total = Counter(
-        "codeguardian_llm_cost_cents_total",
-        "Total LLM cost in cents",
-        ["model"],
-    )
-
-    active_reviews = Gauge(
-        "codeguardian_active_reviews",
-        "Number of reviews currently in progress",
-    )
-
-    agent_duration = Histogram(
-        "codeguardian_agent_duration_seconds",
-        "Time per agent execution",
-        ["agent", "status"],
-        buckets=[1, 5, 10, 30, 60, 120],
-    )
-
-    cache_hits = Counter(
-        "codeguardian_cache_hits_total",
-        "Cache hits by agent",
-        ["agent"],
-    )
-
-    errors_total = Counter(
-        "codeguardian_errors_total",
-        "Errors by type",
-        ["type"],
-    )
+# Prometheus metrics (lazy init — only import if prometheus_client available)
+_metrics = None
+_initialized = False
 
 
-# ============================================================
-# Metrics API
-# ============================================================
+def _get_metrics():
+    global _metrics, _initialized
+    if _initialized:
+        return _metrics
+    _initialized = True
+    try:
+        from prometheus_client import Counter, Gauge, Histogram
+
+        _metrics = {
+            "review_duration": Histogram("codeguardian_review_duration_seconds", "Time per review", ["scope"]),
+            "findings_total": Counter("codeguardian_findings_total", "Findings by severity", ["severity"]),
+            "llm_tokens_total": Counter("codeguardian_llm_tokens_total", "LLM tokens used", ["provider", "model"]),
+            "llm_cost_total": Counter("codeguardian_llm_cost_cents_total", "LLM cost in cents"),
+            "active_reviews": Gauge("codeguardian_active_reviews", "Currently running reviews"),
+            "agent_duration": Histogram("codeguardian_agent_duration_seconds", "Time per agent", ["agent"]),
+            "cache_hits": Counter("codeguardian_cache_hits_total", "Cache hits by agent", ["agent"]),
+            "errors_total": Counter("codeguardian_errors_total", "Errors by source", ["source"]),
+        }
+    except ImportError:
+        _metrics = {}
+    return _metrics
+
 
 @contextmanager
 def track_duration(metric_name: str, labels: dict | None = None):
-    """Context manager to track operation duration."""
+    """Context manager to track operation duration via Prometheus."""
+    m = _get_metrics()
     start = time.monotonic()
     try:
         yield
     finally:
-        elapsed = time.monotonic() - start
-        _record_histogram(metric_name, elapsed, labels or {})
+        duration = time.monotonic() - start
+        hist = m.get(metric_name)
+        if hist:
+            if labels:
+                hist.labels(**labels).observe(duration)
+            else:
+                hist.observe(duration)
 
 
-def record_finding(severity: str, category: str):
-    """Record a finding for metrics."""
-    if PROMETHEUS_AVAILABLE:
-        findings_total.labels(severity=severity, category=category).inc()
+def increment(metric: str, label_values: dict | None = None, value: int = 1):
+    """Increment a counter metric safely."""
+    m = _get_metrics()
+    c = m.get(metric)
+    if c:
+        if label_values:
+            c.labels(**label_values).inc(value)
+        else:
+            c.inc(value)
 
 
-def record_llm_usage(model: str, operation: str, tokens: int, cost_cents: float):
-    """Record LLM token usage and cost."""
-    if PROMETHEUS_AVAILABLE:
-        llm_tokens_total.labels(model=model, operation=operation).inc(tokens)
-        llm_cost_total.labels(model=model).inc(cost_cents)
-
-
-def record_cache_hit(agent: str):
-    """Record a cache hit."""
-    if PROMETHEUS_AVAILABLE:
-        cache_hits.labels(agent=agent).inc()
-
-
-def record_error(error_type: str):
-    """Record an error."""
-    if PROMETHEUS_AVAILABLE:
-        errors_total.labels(type=error_type).inc()
-
-
-def metrics_endpoint():
-    """Return Prometheus metrics in text format."""
-    if PROMETHEUS_AVAILABLE:
-        return generate_latest(REGISTRY)
-    return "# Prometheus not available\n"
-
-
-def _record_histogram(name: str, value: float, labels: dict):
-    """Record a histogram metric."""
-    if PROMETHEUS_AVAILABLE:
-        if name == "agent_duration":
-            agent = labels.get("agent", "unknown")
-            status = labels.get("status", "unknown")
-            agent_duration.labels(agent=agent, status=status).observe(value)
-
-
-# ============================================================
-# Structured Logging
-# ============================================================
-
-import logging
-import json
+def gauge_set(metric: str, value: float, labels: dict | None = None):
+    """Set a gauge metric safely."""
+    m = _get_metrics()
+    g = m.get(metric)
+    if g:
+        if labels:
+            g.labels(**labels).set(value)
+        else:
+            g.set(value)
 
 
 class StructuredLogger:
-    """JSON-structured logger for machine parsing."""
+    """Logger that outputs JSON-structured log records."""
 
-    def __init__(self, name: str = "codeguardian"):
+    def __init__(self, name: str, level: int = logging.INFO):
         self.logger = logging.getLogger(name)
+        self.logger.setLevel(level)
+        if not self.logger.handlers:
+            handler = logging.StreamHandler()
+            handler.setFormatter(logging.Formatter("%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"))
+            self.logger.addHandler(handler)
 
-    def _log(self, level: str, message: str, **kwargs):
-        extra = {
-            "service": "codeguardian",
-            "environment": os.getenv("ENVIRONMENT", "development"),
-            **kwargs,
-        }
-        record = {"level": level, "message": message, "timestamp": time.time(), **extra}
-        text = json.dumps(record, default=str)
+    def _log(self, level: int, msg: str, **extra):
+        extra_str = f" | {json.dumps(extra)}" if extra else ""
+        self.logger.log(level, f"{msg}{extra_str}")
 
-        if level == "ERROR":
-            self.logger.error(text)
-        elif level == "WARN":
-            self.logger.warning(text)
-        elif level == "DEBUG":
-            self.logger.debug(text)
-        else:
-            self.logger.info(text)
+    def info(self, msg: str, **extra):
+        self._log(logging.INFO, msg, **extra)
 
-    def info(self, msg: str, **kwargs):
-        self._log("INFO", msg, **kwargs)
+    def warning(self, msg: str, **extra):
+        self._log(logging.WARNING, msg, **extra)
 
-    def error(self, msg: str, **kwargs):
-        self._log("ERROR", msg, **kwargs)
+    def error(self, msg: str, **extra):
+        self._log(logging.ERROR, msg, **extra)
 
-    def warn(self, msg: str, **kwargs):
-        self._log("WARN", msg, **kwargs)
-
-    def debug(self, msg: str, **kwargs):
-        self._log("DEBUG", msg, **kwargs)
-
-
-logger = StructuredLogger()
+    def debug(self, msg: str, **extra):
+        self._log(logging.DEBUG, msg, **extra)

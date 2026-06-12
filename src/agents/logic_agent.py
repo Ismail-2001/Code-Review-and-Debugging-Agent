@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast as ast_module
 
 from src.agents.base import AnalysisAgent
 from src.agents.state import CodeReviewState, Finding
@@ -9,8 +10,6 @@ from src.prompts.logic_verification import (
     LOGIC_VERIFICATION_SYSTEM_PROMPT,
     LOGIC_VERIFICATION_TEMPLATE,
 )
-
-import ast as ast_module
 
 
 class LogicAgent(AnalysisAgent):
@@ -25,12 +24,12 @@ class LogicAgent(AnalysisAgent):
         return "logic_verification"
 
     async def analyze(self, state: CodeReviewState) -> CodeReviewState:
-        files = state.get("target_files", [])
+        files = state.get("target_files") or []
         findings: list[Finding] = []
 
         for file_path in files:
             try:
-                with open(file_path, "r", encoding="utf-8") as f:
+                with open(file_path, encoding="utf-8") as f:
                     content = f.read()
             except Exception:
                 continue
@@ -42,8 +41,7 @@ class LogicAgent(AnalysisAgent):
                 continue
 
             functions = [
-                n for n in ast_module.walk(tree)
-                if isinstance(n, (ast_module.FunctionDef, ast_module.AsyncFunctionDef))
+                n for n in ast_module.walk(tree) if isinstance(n, (ast_module.FunctionDef, ast_module.AsyncFunctionDef))
             ]
 
             for func in functions:
@@ -54,8 +52,7 @@ class LogicAgent(AnalysisAgent):
 
                 docstring = ast_module.get_docstring(func) or "No documentation provided"
                 parameters = [
-                    f"{a.arg}: {ast_module.unparse(a.annotation) if a.annotation else 'Any'}"
-                    for a in func.args.args
+                    f"{a.arg}: {ast_module.unparse(a.annotation) if a.annotation else 'Any'}" for a in func.args.args
                 ]
                 return_type = ""
                 if func.returns:

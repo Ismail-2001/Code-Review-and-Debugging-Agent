@@ -14,6 +14,7 @@ from src.di.container import AppContext
 
 class PolicyFinding(BaseModel):
     """Finding from policy verification."""
+
     file: str = ""
     line: int = 0
     severity: str = "medium"
@@ -25,6 +26,7 @@ class PolicyFinding(BaseModel):
 
 class PolicyFindingList(BaseModel):
     """List of policy findings."""
+
     findings: list[PolicyFinding]
 
 
@@ -65,19 +67,34 @@ class PolicyRAGEngine:
     def _lazy_imports(self):
         """Lazy-load heavy langchain dependencies only when needed."""
         from langchain.text_splitter import RecursiveCharacterTextSplitter
-        from langchain_community.vectorstores import Chroma
-        from langchain_google_genai import GoogleGenerativeAIEmbeddings
         from langchain_community.document_loaders import DirectoryLoader, TextLoader
+        from langchain_community.vectorstores import Chroma
         from langchain_core.documents import Document
-        return RecursiveCharacterTextSplitter, Chroma, GoogleGenerativeAIEmbeddings, DirectoryLoader, TextLoader, Document
+        from langchain_google_genai import GoogleGenerativeAIEmbeddings
+
+        return (
+            RecursiveCharacterTextSplitter,
+            Chroma,
+            GoogleGenerativeAIEmbeddings,
+            DirectoryLoader,
+            TextLoader,
+            Document,
+        )
 
     def ensure_initialized(self):
         """Lazily initialize the vector store."""
         if self._initialized:
             return
 
-        RecursiveCharacterTextSplitter, Chroma, GoogleGenerativeAIEmbeddings, DirectoryLoader, TextLoader, Document = self._lazy_imports()
-        self.embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
+        (
+            _RecursiveCharacterTextSplitter,
+            Chroma,
+            _GoogleGenerativeAIEmbeddings,
+            _DirectoryLoader,
+            _TextLoader,
+            _Document,
+        ) = self._lazy_imports()
+        self.embeddings = _GoogleGenerativeAIEmbeddings(model="models/embedding-001")
 
         if os.path.exists(self.persist_dir) and os.listdir(self.persist_dir):
             try:
@@ -105,12 +122,19 @@ class PolicyRAGEngine:
 
     def _index_documents(self):
         """Load, split, and index policy documents from standards directory."""
-        RecursiveCharacterTextSplitter, Chroma, GoogleGenerativeAIEmbeddings, DirectoryLoader, TextLoader, Document = self._lazy_imports()
+        (
+            _RecursiveCharacterTextSplitter,
+            Chroma,
+            _GoogleGenerativeAIEmbeddings,
+            _DirectoryLoader,
+            _TextLoader,
+            _Document,
+        ) = self._lazy_imports()
 
-        loader = DirectoryLoader(
+        loader = _DirectoryLoader(
             self.standards_dir,
             glob="**/*.{txt,md,pdf}",
-            loader_cls=TextLoader,
+            loader_cls=_TextLoader,
             loader_kwargs={"encoding": "utf-8"},
             recursive=True,
         )
@@ -119,7 +143,7 @@ class PolicyRAGEngine:
         if not documents:
             return
 
-        text_splitter = RecursiveCharacterTextSplitter(
+        text_splitter = _RecursiveCharacterTextSplitter(
             chunk_size=1000,
             chunk_overlap=200,
             separators=["\n\n", "\n", ". ", " ", ""],
@@ -135,6 +159,8 @@ class PolicyRAGEngine:
     def query(self, query: str, k: int = 3) -> list:
         """Retrieve relevant policy sections for a given code context."""
         self.ensure_initialized()
+        if self.vector_store is None:
+            return []
         try:
             return self.vector_store.similarity_search(query, k=k)
         except Exception:
@@ -146,10 +172,9 @@ class PolicyRAGEngine:
         if not docs:
             return "No relevant policies found."
 
-        return "\n\n".join([
-            f"--- Policy: {doc.metadata.get('source', 'Unknown')} ---\n{doc.page_content}"
-            for doc in docs
-        ])
+        return "\n\n".join(
+            [f"--- Policy: {doc.metadata.get('source', 'Unknown')} ---\n{doc.page_content}" for doc in docs]
+        )
 
 
 class PolicyVerificationAgent(AnalysisAgent):
@@ -165,12 +190,12 @@ class PolicyVerificationAgent(AnalysisAgent):
     async def analyze(self, state: CodeReviewState) -> CodeReviewState:
         from langchain_core.prompts.chat import ChatPromptTemplate
 
-        files = state.get("target_files", [])
+        files = state.get("target_files") or []
         findings: list[Finding] = []
 
         for file_path in files:
             try:
-                with open(file_path, "r", encoding="utf-8") as f:
+                with open(file_path, encoding="utf-8") as f:
                     content = f.read()
             except Exception:
                 continue
@@ -182,30 +207,36 @@ class PolicyVerificationAgent(AnalysisAgent):
                 continue
 
             # Verify code against policies using LLM
-            prompt = ChatPromptTemplate.from_messages([
-                ("system", POLICY_VERIFICATION_PROMPT),
-            ])
+            prompt = ChatPromptTemplate.from_messages(
+                [
+                    ("system", POLICY_VERIFICATION_PROMPT),
+                ]
+            )
 
             try:
                 chain = prompt | self.llm.with_structured_output(PolicyFindingList)
-                result: PolicyFindingList = await chain.ainvoke({
-                    "policy_context": policy_context,
-                    "file_path": file_path,
-                    "content": content,
-                })
+                result: PolicyFindingList = await chain.ainvoke(
+                    {  # type: ignore[assignment]
+                        "policy_context": policy_context,
+                        "file_path": file_path,
+                        "content": content,
+                    }
+                )
 
                 for pf in result.findings:
-                    findings.append(Finding(
-                        id=str(uuid.uuid4()),
-                        file=pf.file or file_path,
-                        line=pf.line,
-                        severity=pf.severity,
-                        category="policy",
-                        title=pf.title,
-                        description=pf.description,
-                        recommendation=pf.recommendation,
-                        auto_fixable=False,
-                    ))
+                    findings.append(
+                        Finding(
+                            id=str(uuid.uuid4()),
+                            file=pf.file or file_path,
+                            line=pf.line,
+                            severity=pf.severity,
+                            category="policy",
+                            title=pf.title,
+                            description=pf.description,
+                            recommendation=pf.recommendation,
+                            auto_fixable=False,
+                        )
+                    )
 
             except Exception:
                 continue

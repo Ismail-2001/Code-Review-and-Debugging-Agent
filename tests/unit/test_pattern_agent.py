@@ -1,13 +1,14 @@
 """Tests for pattern analysis agent — AST-based smell detection."""
 
-import sys
 import os
+import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 
 import pytest
+
 from agents.pattern_agent import PatternAgent
-from di.container import AppContext, MetricsClient, CacheClient
+from di.container import AppContext, CacheClient, MetricsClient
 
 
 @pytest.fixture
@@ -19,9 +20,7 @@ def agent():
 @pytest.mark.asyncio
 async def test_detects_long_function(agent, tmp_path):
     test_file = tmp_path / "long_func.py"
-    test_file.write_text(
-        "def long_func():\n" + "\n".join(f"    x = {i}" for i in range(60))
-    )
+    test_file.write_text("def long_func():\n" + "\n".join(f"    x = {i}" for i in range(60)))
 
     state = {"target_files": [str(test_file)], "pattern_analysis_findings": []}
     result = await agent.analyze(state)

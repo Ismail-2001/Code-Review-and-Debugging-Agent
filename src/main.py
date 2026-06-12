@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
+import json
 import os
 import sys
 import time
-import json
 
 import click
 from dotenv import load_dotenv
@@ -14,15 +15,12 @@ from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 
-
-
-
 # Ensure src is on path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from src.di.container import create_app_context
 from src.agents.graph import build_code_review_graph
 from src.agents.state import CodeReviewState
+from src.di.container import create_app_context
 from src.utils.config_loader import load_config
 from src.utils.logger import setup_logger
 
@@ -30,6 +28,7 @@ load_dotenv()
 
 console = Console(emoji=False)
 logger = setup_logger("codeguardian")
+
 
 def safe_print(msg: str = "", style: str = ""):
     """Print safely on Windows legacy terminals."""
@@ -41,11 +40,12 @@ def safe_print(msg: str = "", style: str = ""):
     except (UnicodeEncodeError, UnicodeDecodeError):
         # Strip rich markup and print plain text
         import re
-        plain = re.sub(r'\[/?\w+(?: \w+=[^\]]+)*\]', '', msg)
+
+        plain = re.sub(r"\[/?\w+(?: \w+=[^\]]+)*\]", "", msg)
         try:
             print(plain)
         except (UnicodeEncodeError, UnicodeDecodeError):
-            print(plain.encode('ascii', errors='replace').decode())
+            print(plain.encode("ascii", errors="replace").decode())
 
 
 @click.group()
@@ -55,19 +55,24 @@ def cli():
 
 @cli.command()
 @click.argument("repository_url")
-@click.option("--scope", default="full",
-              type=click.Choice(["full", "branch", "files", "diff"]),
-              help="Analysis scope")
+@click.option("--scope", default="full", type=click.Choice(["full", "branch", "files", "diff"]), help="Analysis scope")
 @click.option("--branch", default=None, help="Target branch for diff analysis")
 @click.option("--files", default=None, help="Comma-separated file list")
 @click.option("--auto-fix/--no-auto-fix", default=True, help="Enable auto-fix generation")
-@click.option("--severity", default="medium",
-              type=click.Choice(["critical", "high", "medium", "low", "info"]),
-              help="Minimum severity threshold")
+@click.option(
+    "--severity",
+    default="medium",
+    type=click.Choice(["critical", "high", "medium", "low", "info"]),
+    help="Minimum severity threshold",
+)
 @click.option("--output", default="./reports", help="Output directory")
-@click.option("--format", "output_format", default="markdown",
-              type=click.Choice(["markdown", "json", "all"]),
-              help="Report format")
+@click.option(
+    "--format",
+    "output_format",
+    default="markdown",
+    type=click.Choice(["markdown", "json", "all"]),
+    help="Report format",
+)
 @click.option("--config", "config_path", default=None, help="Config file path")
 def review(
     repository_url: str,
@@ -156,7 +161,7 @@ async def _run_review(
 
         try:
             final_state: CodeReviewState = initial_state.copy()
-            async for event in graph.astream(initial_state, config):
+            async for event in graph.astream(initial_state, config):  # type: ignore[attr-defined]
                 for node_name, state_delta in event.items():
                     step = state_delta.get("current_step", node_name)
                     display = step.replace("_", " ").title()
@@ -174,10 +179,8 @@ async def _run_review(
             safe_print(f"\n[red]Error:[/red] {e}")
             logger.error("Review failed", exc_info=True)
         finally:
-            try:
+            with contextlib.suppress(Exception):
                 progress.__exit__(None, None, None)
-            except Exception:
-                pass
     except Exception:
         pass
 
@@ -201,10 +204,8 @@ def _display_summary(state: CodeReviewState):
         table.add_row(f"{sev.capitalize()}", str(count))
 
     safe_print("")
-    try:
+    with contextlib.suppress(UnicodeEncodeError, UnicodeDecodeError):
         console.print(table)
-    except (UnicodeEncodeError, UnicodeDecodeError):
-        pass  # skip rich table rendering on legacy terminals
 
     if findings:
         safe_print("\n[bold]Top Issues:[/bold]")

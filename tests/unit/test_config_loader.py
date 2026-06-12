@@ -2,10 +2,10 @@
 
 import os
 import tempfile
+
 import yaml
 
-import pytest
-from src.utils.config_loader import load_config, _deep_merge
+from src.utils.config_loader import _deep_merge, load_config
 
 
 class TestConfigLoader:

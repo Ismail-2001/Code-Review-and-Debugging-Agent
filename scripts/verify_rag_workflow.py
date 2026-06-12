@@ -21,10 +21,10 @@ async def run_verification():
     standards_dir = "./standards"
     if not os.path.exists(standards_dir):
         os.makedirs(standards_dir)
-    
+
     with open(os.path.join(standards_dir, "security_policy.txt"), "w") as f:
         f.write("All database queries must use parameterized statements to prevent SQL injection.")
-    
+
     print(f"✅ Created mock policy in {standards_dir}")
 
     # 2. Prepare Initial State
@@ -59,24 +59,24 @@ async def run_verification():
     # 3. Execute Graph
     print("\n🚀 Executing 11-Phase Workflow Engine...")
     config = {"configurable": {"thread_id": "verification-session"}}
-    
+
     # We run until it interrupts or finishes
     current_state = initial_state
-    
-    # Since we have mock nodes in nodes.py that don't call real LLMs (or handle them safely), 
+
+    # Since we have mock nodes in nodes.py that don't call real LLMs (or handle them safely),
     # we can run the flow.
-    
+
     async for event in app.astream(initial_state, config):
         for node, state_delta in event.items():
             print(f"➔ Entering Node: {node}")
             current_state.update(state_delta)
-    
+
     # 4. Results Check
     print("\n📊 Verification Results")
     print("-" * 30)
     print(f"Total Steps Completed: 11")
     print(f"Policy Findings Detected: {len(current_state.get('policy_findings', []))}")
-    
+
     if current_state.get('policy_findings'):
         finding = current_state['policy_findings'][0]
         print(f"✅ RAG Verification Sample: {finding['title']}")

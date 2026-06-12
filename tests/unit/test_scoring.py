@@ -1,8 +1,7 @@
 """Tests for quality scoring algorithm."""
 
-import pytest
-from src.scoring.quality_score import calculate_quality_score, categorize_findings
 from src.agents.state import Finding
+from src.scoring.quality_score import calculate_quality_score, categorize_findings
 
 
 class TestQualityScore:
@@ -19,10 +18,7 @@ class TestQualityScore:
         assert score > 0
 
     def test_many_critical_issues(self):
-        findings = [
-            Finding(severity="critical", category="security", title=f"X{i}", file="a.py")
-            for i in range(10)
-        ]
+        findings = [Finding(severity="critical", category="security", title=f"X{i}", file="a.py") for i in range(10)]
         score = calculate_quality_score(findings, 10)
         assert score < 50  # 10 criticals should bring it below 50
 
@@ -34,10 +30,7 @@ class TestQualityScore:
         assert score > 94  # Single low issue shouldn't hurt much
 
     def test_score_never_negative(self):
-        findings = [
-            Finding(severity="critical", category="security", title=f"X{i}", file="a.py")
-            for i in range(100)
-        ]
+        findings = [Finding(severity="critical", category="security", title=f"X{i}", file="a.py") for i in range(100)]
         score = calculate_quality_score(findings, 1)
         assert score >= 0
 

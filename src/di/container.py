@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import contextlib
 import os
 from dataclasses import dataclass, field
-from typing import Optional
 
 
 @dataclass
@@ -28,9 +28,10 @@ class MetricsClient:
 @dataclass
 class CacheClient:
     """Lightweight cache. In production, replace with Redis."""
+
     _store: dict = field(default_factory=dict)
 
-    async def get(self, key: str) -> Optional[dict]:
+    async def get(self, key: str) -> dict | None:
         return self._store.get(key)
 
     async def set(self, key: str, value: dict, ttl: int = 86400):
@@ -40,24 +41,23 @@ class CacheClient:
 @dataclass
 class AppContext:
     """Single source of truth for all services used across agents."""
+
     llm: object = None
     config: dict = field(default_factory=dict)
-    vector_store: Optional[object] = None
+    vector_store: object | None = None
     cache: CacheClient = field(default_factory=CacheClient)
     metrics: MetricsClient = field(default_factory=MetricsClient)
     checkpointer: object = None
 
     def child(self, **overrides) -> AppContext:
-        kwargs = {
-            "llm": self.llm,
-            "config": self.config,
-            "vector_store": self.vector_store,
-            "cache": self.cache,
-            "metrics": self.metrics,
-            "checkpointer": self.checkpointer,
-        }
-        kwargs.update(overrides)
-        return AppContext(**kwargs)
+        return AppContext(
+            llm=overrides.get("llm", self.llm),
+            config=overrides.get("config", self.config),
+            vector_store=overrides.get("vector_store", self.vector_store),
+            cache=overrides.get("cache", self.cache),
+            metrics=overrides.get("metrics", self.metrics),
+            checkpointer=overrides.get("checkpointer", self.checkpointer),
+        )
 
 
 def _create_llm(config: dict):
@@ -67,20 +67,23 @@ def _create_llm(config: dict):
 
     if provider == "openai":
         from langchain_openai import ChatOpenAI
+
         return ChatOpenAI(
             model=config.get("llm_model", "gpt-4o"),
             temperature=temperature,
-            api_key=os.getenv("OPENAI_API_KEY"),
+            api_key=os.getenv("OPENAI_API_KEY"),  # type: ignore[arg-type]
         )
     elif provider == "anthropic":
         from langchain_anthropic import ChatAnthropic
-        return ChatAnthropic(
+
+        return ChatAnthropic(  # type: ignore[call-arg]
             model=config.get("llm_model", "claude-3-5-sonnet-20241022"),
             temperature=temperature,
-            api_key=os.getenv("ANTHROPIC_API_KEY"),
+            api_key=os.getenv("ANTHROPIC_API_KEY"),  # type: ignore[arg-type]
         )
     else:
         from langchain_google_genai import ChatGoogleGenerativeAI
+
         return ChatGoogleGenerativeAI(
             model=config.get("llm_model", "gemini-2.0-flash-exp"),
             temperature=temperature,
@@ -91,6 +94,7 @@ def _create_llm(config: dict):
 def _create_checkpointer():
     """Create checkpoint saver with lazy import."""
     from langgraph.checkpoint.memory import MemorySaver
+
     return MemorySaver()
 
 
@@ -103,15 +107,11 @@ def create_app_context(config_path: str | None = None) -> AppContext:
     checkpointer = None
 
     # Only create LLM if dependencies are available
-    try:
+    with contextlib.suppress(ImportError, Exception):
         llm = _create_llm(config)
-    except (ImportError, Exception):
-        pass
 
-    try:
+    with contextlib.suppress(ImportError):
         checkpointer = _create_checkpointer()
-    except ImportError:
-        pass
 
     return AppContext(
         llm=llm,

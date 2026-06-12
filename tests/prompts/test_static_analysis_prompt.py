@@ -28,6 +28,11 @@ class TestStaticAnalysisPrompt:
         assert "description" in STATIC_ANALYSIS_SYSTEM_PROMPT
 
     def test_has_category_options(self):
-        assert any(cat in STATIC_ANALYSIS_SYSTEM_PROMPT for cat in [
-            "type_safety", "api_misuse", "dead_code",
-        ])
+        assert any(
+            cat in STATIC_ANALYSIS_SYSTEM_PROMPT
+            for cat in [
+                "type_safety",
+                "api_misuse",
+                "dead_code",
+            ]
+        )

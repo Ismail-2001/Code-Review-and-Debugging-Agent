@@ -76,7 +76,7 @@ def execute_all_phases(path):
     print(f"Aggregating {len(findings)} Findings...")
     print("Deduplicating entries...")
     sorted_findings = sorted(findings, key=lambda x: x['severity'])
-    
+
     # Phase 10: REPORTING
     phase_log("10. REPORTING", "📝")
     report_content = f"# CodeGuardian Full Review Report\nDate: {time.ctime()}\n\n"
@@ -87,7 +87,7 @@ def execute_all_phases(path):
     for f in sorted_findings:
         report_content += f"### {f['title']} [{f['severity'].upper()}]\n"
         report_content += f"- File: {f['file']}\n- Description: {f['description']}\n\n"
-    
+
     with open('full_execution_report.md', 'w', encoding='utf-8') as rf:
         rf.write(report_content)
     print("\n✅ Execution Complete!")

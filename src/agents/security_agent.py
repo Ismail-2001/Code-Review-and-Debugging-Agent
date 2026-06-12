@@ -2,15 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import subprocess
-import asyncio
 import uuid
 
 from src.agents.base import AnalysisAgent
 from src.agents.state import CodeReviewState, Finding
 from src.prompts.security import SECURITY_SYSTEM_PROMPT
-
 
 SECURITY_TEMPLATE = """File: {file_path}
 
@@ -27,7 +26,7 @@ class SecurityAgent(AnalysisAgent):
         return "security_audit"
 
     async def analyze(self, state: CodeReviewState) -> CodeReviewState:
-        files = state.get("target_files", [])
+        files = state.get("target_files") or []
         all_findings: list[Finding] = []
         errors: list[str] = []
 
@@ -36,7 +35,7 @@ class SecurityAgent(AnalysisAgent):
             file_errors = []
 
             try:
-                with open(file_path, "r", encoding="utf-8") as f:
+                with open(file_path, encoding="utf-8") as f:
                     content = f.read()
             except Exception as e:
                 return [], [f"Cannot read {file_path}: {e}"]
@@ -76,7 +75,7 @@ class SecurityAgent(AnalysisAgent):
         for result in results:
             if isinstance(result, Exception):
                 errors.append(f"Security analysis error: {result}")
-            else:
+            elif isinstance(result, tuple):
                 file_findings, file_errors = result
                 all_findings.extend(file_findings)
                 errors.extend(file_errors)
@@ -93,7 +92,9 @@ class SecurityAgent(AnalysisAgent):
                     None,
                     lambda: subprocess.run(
                         ["bandit", "-f", "json", "-q", file_path],
-                        capture_output=True, text=True, timeout=30,
+                        capture_output=True,
+                        text=True,
+                        timeout=30,
                     ),
                 ),
                 timeout=35,
@@ -106,17 +107,19 @@ class SecurityAgent(AnalysisAgent):
             for issue in data.get("results", []):
                 severity = issue.get("issue_severity", "medium").lower()
                 severity_map = {"low": "low", "medium": "medium", "high": "high"}
-                findings.append(Finding(
-                    id=str(uuid.uuid4()),
-                    file=file_path,
-                    line=issue.get("line_number", 0),
-                    severity=severity_map.get(severity, "medium"),
-                    category="security",
-                    title=f"Bandit: {issue.get('test_name', 'Unknown')}",
-                    description=issue.get("issue_text", ""),
-                    recommendation=issue.get("more_info", ""),
-                    auto_fixable=False,
-                ))
+                findings.append(
+                    Finding(
+                        id=str(uuid.uuid4()),
+                        file=file_path,
+                        line=issue.get("line_number", 0),
+                        severity=severity_map.get(severity, "medium"),
+                        category="security",
+                        title=f"Bandit: {issue.get('test_name', 'Unknown')}",
+                        description=issue.get("issue_text", ""),
+                        recommendation=issue.get("more_info", ""),
+                        auto_fixable=False,
+                    )
+                )
             return findings, []
         except (subprocess.TimeoutExpired, FileNotFoundError) as e:
             return [], [f"Bandit failed for {file_path}: {e}"]
@@ -130,7 +133,9 @@ class SecurityAgent(AnalysisAgent):
                     None,
                     lambda: subprocess.run(
                         ["semgrep", "--json", "--config", "auto", "--optimizations", "all", file_path],
-                        capture_output=True, text=True, timeout=60,
+                        capture_output=True,
+                        text=True,
+                        timeout=60,
                     ),
                 ),
                 timeout=65,
@@ -143,18 +148,20 @@ class SecurityAgent(AnalysisAgent):
             for result_item in data.get("results", []):
                 severity = result_item.get("extra", {}).get("severity", "WARNING")
                 severity_map = {"INFO": "low", "WARNING": "medium", "ERROR": "high"}
-                findings.append(Finding(
-                    id=str(uuid.uuid4()),
-                    file=file_path,
-                    line=result_item.get("start", {}).get("line", 0),
-                    severity=severity_map.get(severity, "medium"),
-                    category="security",
-                    title=f"Semgrep: {result_item.get('check_id', 'Unknown')}",
-                    description=result_item.get("extra", {}).get("message", ""),
-                    recommendation=result_item.get("extra", {}).get("metadata", {}).get("fix", ""),
-                    cwe_id=result_item.get("extra", {}).get("metadata", {}).get("cwe_id", [None])[0],
-                    auto_fixable=False,
-                ))
+                findings.append(
+                    Finding(
+                        id=str(uuid.uuid4()),
+                        file=file_path,
+                        line=result_item.get("start", {}).get("line", 0),
+                        severity=severity_map.get(severity, "medium"),
+                        category="security",
+                        title=f"Semgrep: {result_item.get('check_id', 'Unknown')}",
+                        description=result_item.get("extra", {}).get("message", ""),
+                        recommendation=result_item.get("extra", {}).get("metadata", {}).get("fix", ""),
+                        cwe_id=result_item.get("extra", {}).get("metadata", {}).get("cwe_id", [None])[0],
+                        auto_fixable=False,
+                    )
+                )
             return findings, []
         except (subprocess.TimeoutExpired, FileNotFoundError) as e:
             return [], [f"Semgrep failed for {file_path}: {e}"]

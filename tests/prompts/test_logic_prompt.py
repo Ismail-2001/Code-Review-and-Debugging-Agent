@@ -14,7 +14,9 @@ class TestLogicPrompt:
         assert "State" in LOGIC_VERIFICATION_SYSTEM_PROMPT
 
     def test_covers_off_by_one(self):
-        assert "Off-by-One" in LOGIC_VERIFICATION_SYSTEM_PROMPT or "off-by-one" in LOGIC_VERIFICATION_SYSTEM_PROMPT.lower()
+        assert (
+            "Off-by-One" in LOGIC_VERIFICATION_SYSTEM_PROMPT or "off-by-one" in LOGIC_VERIFICATION_SYSTEM_PROMPT.lower()
+        )
 
     def test_covers_resource_mgmt(self):
         assert "Resource" in LOGIC_VERIFICATION_SYSTEM_PROMPT

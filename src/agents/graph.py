@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from langgraph.graph import StateGraph, END
+from langgraph.graph import END, StateGraph
 
 from src.agents.state import CodeReviewState
 from src.di.container import AppContext, create_app_context
@@ -17,19 +17,19 @@ def build_code_review_graph(ctx: AppContext) -> StateGraph:
     - Checkpoint-based state persistence
     - Interrupt points for HITL approval
     """
-    from src.agents.static_analysis_agent import StaticAnalysisAgent
-    from src.agents.pattern_agent import PatternAgent
-    from src.agents.security_agent import SecurityAgent
-    from src.agents.performance_agent import PerformanceAgent
-    from src.agents.testing_agent import TestingAgent
-    from src.agents.logic_agent import LogicAgent
     from src.agents.fix_agent import FixAgent
-    from src.rag.policy_engine import PolicyVerificationAgent
+    from src.agents.logic_agent import LogicAgent
     from src.agents.nodes import (
-        synthesize_findings_node,
-        should_generate_fixes,
         create_reports_node,
+        should_generate_fixes,
+        synthesize_findings_node,
     )
+    from src.agents.pattern_agent import PatternAgent
+    from src.agents.performance_agent import PerformanceAgent
+    from src.agents.security_agent import SecurityAgent
+    from src.agents.static_analysis_agent import StaticAnalysisAgent
+    from src.agents.testing_agent import TestingAgent
+    from src.rag.policy_engine import PolicyVerificationAgent
 
     # Instantiate agents with DI context
     agents = {
@@ -101,8 +101,8 @@ def build_code_review_graph(ctx: AppContext) -> StateGraph:
     workflow.add_edge("reporting", END)
 
     # Compile with checkpointing for HITL support
-    return workflow.compile(
-        checkpointer=ctx.checkpointer,
+    return workflow.compile(  # type: ignore[return-value]
+        checkpointer=ctx.checkpointer,  # type: ignore[arg-type]
         interrupt_before=["fix_generation"] if "fix_generation" in dict(workflow.nodes) else [],
     )
 

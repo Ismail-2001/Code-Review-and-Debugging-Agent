@@ -2,19 +2,19 @@
 
 from __future__ import annotations
 
-import uuid
 import asyncio
+import contextlib
+import uuid
 from datetime import datetime
-from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks, Query, WebSocket
+from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Query, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 
-from src.di.container import create_app_context
 from src.agents.graph import build_code_review_graph
 from src.agents.state import CodeReviewState
+from src.di.container import create_app_context
 
 app = FastAPI(
     title="CodeGuardian API",
@@ -43,20 +43,23 @@ _ctx = create_app_context()
 # Pydantic Models
 # ============================================================
 
+
 class ReviewRequest(BaseModel):
     repo_url: str = Field(..., description="Git repository URL")
     branch: str = Field("main", description="Branch to analyze")
     scope: str = Field("full", pattern="^(full|branch|files|diff)$")
     auto_fix: bool = False
-    files: Optional[list[str]] = None
+    files: list[str] | None = None
     severity_threshold: str = Field("medium", pattern="^(critical|high|medium|low|info)$")
+
 
 class ReviewResponse(BaseModel):
     review_id: str
     status: str
-    quality_score: Optional[float] = None
-    summary: Optional[dict] = None
+    quality_score: float | None = None
+    summary: dict | None = None
     created_at: str
+
 
 class FindingResponse(BaseModel):
     id: str
@@ -67,7 +70,7 @@ class FindingResponse(BaseModel):
     title: str
     description: str
     recommendation: str
-    cwe_id: Optional[str] = None
+    cwe_id: str | None = None
     auto_fixable: bool = False
 
 
@@ -75,7 +78,8 @@ class FindingResponse(BaseModel):
 # Middleware / Auth
 # ============================================================
 
-async def authenticate(auth: Optional[HTTPAuthorizationCredentials] = Depends(security)):
+
+async def authenticate(auth: HTTPAuthorizationCredentials | None = Depends(security)):  # noqa: B008
     """Simple API key auth. Replace with JWT/OAuth in production."""
     if auth is None:
         raise HTTPException(status_code=401, detail="Missing authorization header")
@@ -89,21 +93,24 @@ async def authenticate(auth: Optional[HTTPAuthorizationCredentials] = Depends(se
 # Routes
 # ============================================================
 
+
 @app.get("/v1/health")
 async def health():
     """Health check endpoint."""
     return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
+
 
 @app.get("/v1/ready")
 async def readiness():
     """Readiness check for Kubernetes."""
     return {"status": "ready"}
 
+
 @app.post("/v1/reviews", response_model=ReviewResponse, status_code=202)
 async def create_review(
     req: ReviewRequest,
     background_tasks: BackgroundTasks,
-    auth: dict = Depends(authenticate),
+    auth: dict = Depends(authenticate),  # noqa: B008
 ):
     """Trigger a new code review."""
     review_id = str(uuid.uuid4())
@@ -127,21 +134,23 @@ async def create_review(
         created_at=_reviews[review_id]["created_at"],
     )
 
+
 @app.get("/v1/reviews/{review_id}")
-async def get_review(review_id: str, auth: dict = Depends(authenticate)):
+async def get_review(review_id: str, auth: dict = Depends(authenticate)):  # noqa: B008
     """Get review status and results."""
     review = _reviews.get(review_id)
     if not review:
         raise HTTPException(status_code=404, detail="Review not found")
     return review
 
+
 @app.get("/v1/reviews/{review_id}/findings")
 async def get_findings(
     review_id: str,
-    severity: Optional[str] = Query(None, pattern="^(critical|high|medium|low|info)$"),
-    category: Optional[str] = None,
+    severity: str | None = Query(None, pattern="^(critical|high|medium|low|info)$"),
+    category: str | None = None,
     limit: int = Query(50, le=200),
-    auth: dict = Depends(authenticate),
+    auth: dict = Depends(authenticate),  # noqa: B008
 ):
     """Get paginated findings for a review."""
     review = _reviews.get(review_id)
@@ -164,6 +173,7 @@ async def get_findings(
 # ============================================================
 # Background Task
 # ============================================================
+
 
 async def _run_review_task(review_id: str, req: ReviewRequest):
     """Execute the review pipeline asynchronously."""
@@ -214,28 +224,29 @@ async def _run_review_task(review_id: str, req: ReviewRequest):
             "skip_categories": [],
         }
 
-
         config = {"configurable": {"thread_id": review_id}}
         final_state = initial_state.copy()
 
-        async for event in graph.astream(initial_state, config):
+        async for event in graph.astream(initial_state, config):  # type: ignore[attr-defined]
             for node, delta in event.items():
                 final_state.update(delta)
                 _reviews[review_id]["current_step"] = delta.get("current_step", node)
 
         findings = final_state.get("prioritized_issues", [])
-        _reviews[review_id].update({
-            "status": "completed",
-            "quality_score": final_state.get("quality_score"),
-            "summary": {
-                "total": len(findings),
-                "critical": sum(1 for f in findings if f.get("severity") == "critical"),
-                "high": sum(1 for f in findings if f.get("severity") == "high"),
-                "medium": sum(1 for f in findings if f.get("severity") == "medium"),
-                "low": sum(1 for f in findings if f.get("severity") == "low"),
-            },
-            "findings": findings[:100],
-        })
+        _reviews[review_id].update(
+            {
+                "status": "completed",
+                "quality_score": final_state.get("quality_score"),
+                "summary": {
+                    "total": len(findings),
+                    "critical": sum(1 for f in findings if f.get("severity") == "critical"),
+                    "high": sum(1 for f in findings if f.get("severity") == "high"),
+                    "medium": sum(1 for f in findings if f.get("severity") == "medium"),
+                    "low": sum(1 for f in findings if f.get("severity") == "low"),
+                },
+                "findings": findings[:100],
+            }
+        )
 
     except Exception as e:
         _reviews[review_id]["status"] = "failed"
@@ -245,6 +256,7 @@ async def _run_review_task(review_id: str, req: ReviewRequest):
 # ============================================================
 # WebSocket for live progress
 # ============================================================
+
 
 @app.websocket("/v1/reviews/{review_id}/stream")
 async def review_stream(websocket: WebSocket, review_id: str):
@@ -258,11 +270,13 @@ async def review_stream(websocket: WebSocket, review_id: str):
             current_step = review.get("current_step", "unknown")
 
             if current_step != last_step:
-                await websocket.send_json({
-                    "review_id": review_id,
-                    "status": review.get("status", "unknown"),
-                    "current_step": current_step,
-                })
+                await websocket.send_json(
+                    {
+                        "review_id": review_id,
+                        "status": review.get("status", "unknown"),
+                        "current_step": current_step,
+                    }
+                )
                 last_step = current_step
 
             if review.get("status") in ("completed", "failed"):
@@ -272,7 +286,5 @@ async def review_stream(websocket: WebSocket, review_id: str):
     except Exception:
         pass
     finally:
-        try:
+        with contextlib.suppress(Exception):
             await websocket.close()
-        except Exception:
-            pass

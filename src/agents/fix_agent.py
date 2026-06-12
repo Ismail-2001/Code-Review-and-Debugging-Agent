@@ -15,6 +15,7 @@ from src.prompts.fix_generation import FIX_GENERATION_SYSTEM_PROMPT, FIX_TEMPLAT
 
 class FixResult(BaseModel):
     """Structured fix output from LLM."""
+
     diff: str = ""
     confidence: float = Field(default=0.0, ge=0.0, le=1.0)
     explanation: str = ""
@@ -23,6 +24,7 @@ class FixResult(BaseModel):
 
 class DiffError(Exception):
     """Raised when a diff cannot be applied cleanly."""
+
     pass
 
 
@@ -48,7 +50,7 @@ class FixAgent(AnalysisAgent):
                 if not file_path:
                     continue
 
-                with open(file_path, "r", encoding="utf-8") as f:
+                with open(file_path, encoding="utf-8") as f:
                     content = f.read()
 
                 # Get context window around the issue line
@@ -65,57 +67,69 @@ class FixAgent(AnalysisAgent):
                     # Validate the fix
                     is_valid, error = self._validate_fix(fix, content)
                     if is_valid:
-                        generated_fixes.append({
-                            "issue_id": issue.get("id", ""),
-                            "diff": fix.diff,
-                            "explanation": fix.explanation,
-                            "risks": fix.risks,
-                            "confidence": fix.confidence,
-                            "status": "validated",
-                            "file": file_path,
-                        })
+                        generated_fixes.append(
+                            {
+                                "issue_id": issue.get("id", ""),
+                                "diff": fix.diff,
+                                "explanation": fix.explanation,
+                                "risks": fix.risks,
+                                "confidence": fix.confidence,
+                                "status": "validated",
+                                "file": file_path,
+                            }
+                        )
                     else:
-                        generated_fixes.append({
-                            "issue_id": issue.get("id", ""),
-                            "status": "validation_failed",
-                            "error": error,
-                        })
+                        generated_fixes.append(
+                            {
+                                "issue_id": issue.get("id", ""),
+                                "status": "validation_failed",
+                                "error": error,
+                            }
+                        )
                 else:
-                    generated_fixes.append({
-                        "issue_id": issue.get("id", ""),
-                        "status": "low_confidence",
-                        "confidence": fix.confidence if fix else 0,
-                    })
+                    generated_fixes.append(
+                        {
+                            "issue_id": issue.get("id", ""),
+                            "status": "low_confidence",
+                            "confidence": fix.confidence if fix else 0,
+                        }
+                    )
 
             except Exception as e:
-                generated_fixes.append({
-                    "issue_id": issue.get("id", ""),
-                    "status": "error",
-                    "error": str(e),
-                })
+                generated_fixes.append(
+                    {
+                        "issue_id": issue.get("id", ""),
+                        "status": "error",
+                        "error": str(e),
+                    }
+                )
 
         state["generated_fixes"] = generated_fixes
         state["current_step"] = "fix_generation_complete"
         return state
 
     async def _generate_fix(self, issue: Finding, context: str, line: int) -> FixResult | None:
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", FIX_GENERATION_SYSTEM_PROMPT),
-            ("human", FIX_TEMPLATE),
-        ])
+        prompt = ChatPromptTemplate.from_messages(
+            [
+                ("system", FIX_GENERATION_SYSTEM_PROMPT),
+                ("human", FIX_TEMPLATE),
+            ]
+        )
 
         try:
             chain = prompt | self.llm.with_structured_output(FixResult)
-            result: FixResult = await chain.ainvoke({
-                "title": issue.get("title", ""),
-                "severity": issue.get("severity", "medium"),
-                "description": issue.get("description", ""),
-                "file": issue.get("file", ""),
-                "line": line,
-                "start_line": line - 10,
-                "end_line": line + 10,
-                "context": context,
-            })
+            result: FixResult = await chain.ainvoke(
+                {  # type: ignore[assignment]
+                    "title": issue.get("title", ""),
+                    "severity": issue.get("severity", "medium"),
+                    "description": issue.get("description", ""),
+                    "file": issue.get("file", ""),
+                    "line": line,
+                    "start_line": line - 10,
+                    "end_line": line + 10,
+                    "context": context,
+                }
+            )
             return result
         except Exception:
             return None

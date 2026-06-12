@@ -5,11 +5,9 @@ from __future__ import annotations
 import json
 import subprocess
 
-
 from src.agents.base import AnalysisAgent
 from src.agents.state import CodeReviewState, Finding
-from src.prompts.static_analysis import STATIC_ANALYSIS_SYSTEM_PROMPT, FILE_CONTEXT_TEMPLATE
-
+from src.prompts.static_analysis import FILE_CONTEXT_TEMPLATE, STATIC_ANALYSIS_SYSTEM_PROMPT
 
 
 class StaticAnalysisAgent(AnalysisAgent):
@@ -19,7 +17,7 @@ class StaticAnalysisAgent(AnalysisAgent):
         return "static_analysis"
 
     async def analyze(self, state: CodeReviewState) -> CodeReviewState:
-        files = state.get("target_files", [])
+        files = state.get("target_files") or []
         all_findings: list[Finding] = []
 
         for file_path in files:
@@ -53,7 +51,7 @@ class StaticAnalysisAgent(AnalysisAgent):
         return state
 
     def _read_file(self, file_path: str) -> str:
-        with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+        with open(file_path, encoding="utf-8", errors="replace") as f:
             return f.read()
 
     def _run_pylint(self, file_path: str) -> list[dict]:

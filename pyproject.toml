@@ -1,0 +1,79 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "SIM", "PLC", "PLE", "RUF"]
+ignore = [
+    "E402",   # Module level import not at top — intentional for lazy loads
+    "E501",   # Line too long — handled by formatter
+    "B904",   # Raise without from exception — convenience in short handlers
+    "N806",   # Non-lowercase variable — PascalCase class refs in functions
+    "PLC0415", # Import outside top-level — intentional lazy DI pattern
+    "SIM115", # Open file context manager — handled by with statements
+    "RUF012", # Mutable class defaults — acceptable for TypedDicts
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unused_configs = true
+disallow_subclassing_any = false
+no_implicit_optional = true
+strict_equality = true
+disallow_untyped_defs = false
+disallow_untyped_calls = false
+disallow_untyped_decorators = false
+exclude = [
+    "src/tools/",
+    "src/analyzers/",
+    "tests/",
+    "scripts/",
+    "migrations/",
+    "build/",
+    "dist/",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+markers = [
+    "unit: Unit tests (fast, no external deps)",
+    "integration: Integration tests (may require LLM or external services)",
+    "prompt: Prompt quality tests (no external calls)",
+    "load: Load/performance tests (require locust)",
+]
+
+[tool.coverage.run]
+source = ["src"]
+omit = [
+    "src/tools/*",
+    "src/analyzers/*",
+    "src/__pycache__/*",
+    "*/__pycache__/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+    "except ImportError",
+    "except Exception",
+    "raise NotImplementedError",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["src*"]

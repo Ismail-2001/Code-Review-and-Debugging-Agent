@@ -2,17 +2,16 @@
 
 from __future__ import annotations
 
+import json
 import os
 import time
-import json
-from typing import Optional
 
 from celery import Celery
 from celery.signals import task_failure, task_success
 
-from src.di.container import create_app_context
 from src.agents.graph import build_code_review_graph
 from src.agents.state import CodeReviewState
+from src.di.container import create_app_context
 
 celery_app = Celery(
     "codeguardian",
@@ -42,9 +41,9 @@ def run_review(
     review_id: str,
     repo_url: str,
     branch: str,
-    config_path: Optional[str] = None,
+    config_path: str | None = None,
     auto_fix: bool = False,
-    files: Optional[list[str]] = None,
+    files: list[str] | None = None,
 ):
     """Run a code review as an async Celery task.
 
@@ -55,12 +54,17 @@ def run_review(
     graph = build_code_review_graph(ctx)
 
     initial_state: CodeReviewState = _build_initial_state(
-        review_id, repo_url, branch, ctx.config, auto_fix, files,
+        review_id,
+        repo_url,
+        branch,
+        ctx.config,
+        auto_fix,
+        files,
     )
 
     try:
         config = {"configurable": {"thread_id": review_id}}
-        final_state = graph.invoke(initial_state, config)
+        final_state = graph.invoke(initial_state, config)  # type: ignore[attr-defined]
 
         findings = final_state.get("prioritized_issues", [])
 
@@ -113,7 +117,7 @@ def _build_initial_state(
     branch: str,
     config: dict,
     auto_fix: bool,
-    files: Optional[list[str]],
+    files: list[str] | None,
 ) -> CodeReviewState:
     return {
         "repository_url": repo_url,
@@ -162,5 +166,6 @@ def _build_initial_state(
 def _log_metrics(event: str, data: dict):
     """Log metrics for observability."""
     import logging
+
     logger = logging.getLogger("codeguardian.metrics")
     logger.info(json.dumps({"event": event, "data": data}))

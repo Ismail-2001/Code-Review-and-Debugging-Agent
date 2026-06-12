@@ -19,7 +19,7 @@ def calculate_quality_score(findings: list[Finding], total_files: int) -> float:
     Security and logic issues are weighted 2x because they indicate
     deeper problems than style or performance issues.
     """
-    WEIGHTS = {
+    _WEIGHTS = {
         "critical": 15.0,
         "high": 8.0,
         "medium": 3.0,
@@ -27,7 +27,7 @@ def calculate_quality_score(findings: list[Finding], total_files: int) -> float:
         "info": 0.0,
     }
 
-    CATEGORY_MULTIPLIERS = {
+    _CATEGORY_MULTIPLIERS = {
         "security": 2.0,
         "logic_verification": 1.8,
         "performance": 1.2,
@@ -44,8 +44,8 @@ def calculate_quality_score(findings: list[Finding], total_files: int) -> float:
         severity = finding.get("severity", "info")
         category = finding.get("category", "general")
 
-        weight = WEIGHTS.get(severity, 1.0)
-        multiplier = CATEGORY_MULTIPLIERS.get(category, 1.0)
+        weight = _WEIGHTS.get(severity, 1.0)
+        multiplier = _CATEGORY_MULTIPLIERS.get(category, 1.0)
 
         penalty = weight * multiplier
         score -= penalty
@@ -60,7 +60,11 @@ def calculate_quality_score(findings: list[Finding], total_files: int) -> float:
 def categorize_findings(findings: list[Finding]) -> dict:
     """Categorize findings by severity and category."""
     severity_counts = {
-        "critical": 0, "high": 0, "medium": 0, "low": 0, "info": 0,
+        "critical": 0,
+        "high": 0,
+        "medium": 0,
+        "low": 0,
+        "info": 0,
     }
     category_counts: dict[str, int] = {}
 

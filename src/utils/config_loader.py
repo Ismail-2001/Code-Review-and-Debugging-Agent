@@ -7,7 +7,6 @@ from pathlib import Path
 
 import yaml
 
-
 DEFAULT_CONFIG: dict = {
     "enabled_checks": [
         "static_analysis",
@@ -70,14 +69,11 @@ def load_config(config_path_or_repo: str | None = None) -> dict:
 
     path = Path(config_path_or_repo)
 
-    if path.is_dir():
-        config_file = path / ".codeguardian.yml"
-    else:
-        config_file = path
+    config_file = path / ".codeguardian.yml" if path.is_dir() else path
 
     if config_file.exists():
         try:
-            with open(config_file, "r") as f:
+            with open(config_file) as f:
                 user_config = yaml.safe_load(f)
                 if user_config and isinstance(user_config, dict):
                     return _deep_merge(DEFAULT_CONFIG.copy(), user_config)
